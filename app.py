@@ -5,8 +5,8 @@ import json
 from datetime import datetime, timedelta
 
 # --- Configuration ---
-DEFAULT_SYMBOL = "GSPC"  # Default S&P 500 Index symbol
-DEFAULT_VIX_SYMBOL = "^VIX"  # Default VIX symbol (Note: VIX data might be harder to get for free from Alpha Vantage. May need proxy or alternative source)
+DEFAULT_SYMBOL = "SPY"  # Default S&P 500 Index symbol
+DEFAULT_VIX_SYMBOL = "VXX"  # Default VIX Symbol now VXX (VIX ETF Proxy) - trying proxy for free API access
 MA_SHORT_PERIOD = 50
 MA_LONG_PERIOD = 200
 VIX_THRESHOLD_HIGH = 25
@@ -63,7 +63,7 @@ def fetch_vix_data_alphavantage_free(symbol, api_key, period="max"):
     return fetch_stock_data_alphavantage_free(symbol, api_key, period) # Reusing stock data function for VIX for now
 
 
-# --- Indicator Calculation Functions (same as before) ---
+# --- Indicator Calculation Functions (with robust data checks) ---
 def calculate_moving_averages(data, short_period, long_period):
     """Calculates short and long term moving averages."""
     if data is None or data.empty:
@@ -73,8 +73,9 @@ def calculate_moving_averages(data, short_period, long_period):
     return ma_short, ma_long
 
 def get_trend_direction_ma(data, ma_short, ma_long):
-    """Determines trend direction based on moving average crossover and position."""
-    if data is None or ma_short is None or ma_long is None:
+    """Determines trend direction based on moving average crossover and position.
+       Includes robust checks for None and empty data to prevent errors."""
+    if data is None or data.empty or ma_short is None or ma_long is None:
         return "Neutral (Data Missing)"
 
     last_close = data['Close'].iloc[-1]
@@ -83,6 +84,9 @@ def get_trend_direction_ma(data, ma_short, ma_long):
     ma_short_prev = ma_short.iloc[-2] if len(ma_short) > 1 else ma_short_current #Handle edge case first day
     ma_long_prev = ma_long.iloc[-2] if len(ma_long) > 1 else ma_long_current #Handle edge case first day
 
+    # Add checks to ensure data is valid before comparisons, handle potential NaN values
+    if not all([pd.notna(last_close), pd.notna(ma_short_current), pd.notna(ma_long_current), pd.notna(ma_short_prev), pd.notna(ma_long_prev)]):
+        return "Neutral (Invalid MA Data)" # Return neutral if MA data is invalid
 
     if ma_short_current > ma_long_current and ma_short_prev <= ma_long_prev:
         return "Potential Uptrend (Golden Cross)" #Golden Cross
@@ -129,14 +133,14 @@ def determine_overall_regime(trend_direction, vix_regime):
 def main():
     st.title("Market Regime Indicator (Alpha Vantage - FREE API)")
     st.markdown("Using Alpha Vantage **FREE API** endpoints (TIME_SERIES_DAILY). Data is **unadjusted** for dividends/splits. Limited historical data may be available depending on the symbol and API free tier limits.")
-    st.markdown("For VIX data, free API access might be limited. Consider using a VIX proxy ETF symbol (like VXX) or an alternative free VIX data source if needed.")
+    st.markdown("For VIX data, free API access might be limited. Using **VXX (VIX ETF Proxy)** as default VIX symbol. Consider alternative free VIX data source if needed.") # Updated VIX info
     st.markdown("API call frequency limits apply to the free tier. Please be mindful of usage.")
     st.markdown("---")
 
     st.sidebar.header("Settings")
     alpha_vantage_api_key = st.sidebar.text_input("Alpha Vantage API Key", type="password")
     symbol = st.sidebar.text_input("Stock Index Symbol (e.g., ^GSPC or SPY)", DEFAULT_SYMBOL)
-    vix_symbol = st.sidebar.text_input("VIX Symbol (e.g., ^VIX or VXX - VIX data source may be limited in free API)", DEFAULT_VIX_SYMBOL)
+    vix_symbol = st.sidebar.text_input(f"VIX Symbol (e.g., ^VIX or VXX - VIX data source may be limited in free API, using proxy VXX as default)", DEFAULT_VIX_SYMBOL) # Updated VIX symbol hint
     ma_short_period_input = st.sidebar.number_input("Short MA Period", min_value=1, value=MA_SHORT_PERIOD)
     ma_long_period_input = st.sidebar.number_input("Long MA Period", min_value=1, value=MA_LONG_PERIOD)
     vix_high_threshold_input = st.sidebar.number_input("VIX High Threshold", value=VIX_THRESHOLD_HIGH)
@@ -195,7 +199,7 @@ def main():
             st.write("* It uses Moving Averages and VIX as indicators. Real market analysis requires more comprehensive data and tools.")
             st.write("* Data is from Alpha Vantage **FREE API**, using **unadjusted** daily price data (TIME_SERIES_DAILY).")
             st.write("* **Data is unadjusted for dividends and stock splits.** For long-term analysis or precise returns, adjusted data is preferred but might require a paid API subscription.")
-            st.write("* Historical data depth and VIX data availability may be limited by the free API tier. Consider using a VIX proxy ETF symbol (like VXX) if direct VIX data is unavailable.")
+            st.write("* Historical data depth and VIX data availability may be limited by the free API tier. Using **VXX (VIX ETF Proxy) as default VIX symbol** due to potential limitations with direct VIX data in free API.") # Updated VIX disclaimer
             st.write("* API call frequency limits apply to the free tier. Be mindful of usage.")
             st.write("* Regime classifications are based on predefined thresholds and rules, which are examples and can be adjusted and optimized through backtesting.")
             st.write("* **Do not make investment decisions based solely on this indicator.** Consult with a qualified financial advisor before making any investment decisions.")
