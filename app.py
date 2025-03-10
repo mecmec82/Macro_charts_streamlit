@@ -1,9 +1,11 @@
+# E3AHZ2K13ICQR8FC   #alphavantage key
 import streamlit as st
-import yfinance as yf
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-import matplotlib.pyplot as plt  # For Matplotlib plots (optional, Streamlit charts are often preferred)
+import matplotlib.pyplot as plt
+import requests
+import json
 
 # --- Configuration ---
 DEFAULT_SYMBOL = "^GSPC"  # Default S&P 500 Index symbol
@@ -14,22 +16,55 @@ VIX_THRESHOLD_HIGH = 25  # Example threshold for high volatility (bearish)
 VIX_THRESHOLD_LOW = 20   # Example threshold for low volatility (bullish)
 LOOKBACK_DAYS = 730 # ~2 years of data for MAs and trend analysis
 
-# --- Data Fetching Functions (same as before) ---
-def fetch_stock_data(symbol, period="max"):
-    """Fetches historical stock data from Yahoo Finance."""
+# --- Data Fetching Functions (using Alpha Vantage) ---
+def fetch_stock_data_alphavantage(symbol, api_key, period="max"):
+    """Fetches historical stock data from Alpha Vantage API."""
+    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={symbol}&outputsize=full&apikey={api_key}"
     try:
-        data = yf.download(symbol, period=period)
-        if data.empty:
-            st.warning(f"No data found for symbol {symbol}.")
+        response = requests.get(url)
+        response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+        data = response.json()
+
+        if 'Time Series (Daily Adjusted)' in data:
+            time_series_data = data['Time Series (Daily Adjusted)']
+            df = pd.DataFrame.from_dict(time_series_data, orient='index')
+            df.index = pd.to_datetime(df.index)
+            df = df.sort_index()
+            # Rename columns to standard names (like yfinance)
+            df.rename(columns={
+                '1. open': 'Open',
+                '2. high': 'High',
+                '3. low': 'Low',
+                '4. close': 'Close',
+                '5. adjusted close': 'Adj Close',
+                '6. volume': 'Volume'
+            }, inplace=True)
+            return df
+        elif 'Error Message' in data:
+            st.error(f"Alpha Vantage API Error for {symbol}: {data['Error Message']}")
             return None
-        return data
+        else:
+            st.error(f"Unknown error fetching data for {symbol} from Alpha Vantage. Response: {data}")
+            return None
+
+    except requests.exceptions.RequestException as e:
+        st.error(f"Request error to Alpha Vantage: {e}")
+        return None
+    except json.JSONDecodeError:
+        st.error("Error decoding JSON response from Alpha Vantage.")
+        return None
     except Exception as e:
-        st.error(f"Error fetching data for {symbol}: {e}")
+        st.error(f"An unexpected error occurred: {e}")
         return None
 
-def fetch_vix_data(symbol, period="max"):
-    """Fetches historical VIX data from Yahoo Finance."""
-    return fetch_stock_data(symbol, period)
+
+def fetch_vix_data_alphavantage(symbol, api_key, period="max"):
+    """Fetches historical VIX data (using proxy symbol for VIX if needed on AV) from Alpha Vantage."""
+    # Alpha Vantage might not directly have ^VIX. You might need to use a proxy ETF like VXX or UVXY
+    # or find another API for VIX historical data if Alpha Vantage doesn't directly support it.
+    # For this example, we'll try fetching data for VIX symbol directly, if it fails, you might
+    # need to adjust to a proxy or different API source for VIX.
+    return fetch_stock_data_alphavantage(symbol, api_key, period)
 
 
 # --- Indicator Calculation Functions (same as before) ---
@@ -96,24 +131,30 @@ def determine_overall_regime(trend_direction, vix_regime):
 
 # --- Streamlit App ---
 def main():
-    st.title("Market Regime Indicator")
+    st.title("Market Regime Indicator (Alpha Vantage)")
 
     st.sidebar.header("Settings")
-    symbol = st.sidebar.text_input("Stock Index Symbol (e.g., ^GSPC)", DEFAULT_SYMBOL)
-    vix_symbol = st.sidebar.text_input("VIX Symbol (e.g., ^VIX)", DEFAULT_VIX_SYMBOL)
+    #alpha_vantage_api_key = st.sidebar.text_input("Alpha Vantage API Key", type="password") # Password type for security
+    alpha_vantage_api_key = E3AHZ2K13ICQR8FC
+    symbol = st.sidebar.text_input("Stock Index Symbol (e.g., ^GSPC or SPY)", DEFAULT_SYMBOL)
+    vix_symbol = st.sidebar.text_input("VIX Symbol (e.g., ^VIX or VXX)", DEFAULT_VIX_SYMBOL) #VIX symbol might need to be adjusted for AV
     ma_short_period_input = st.sidebar.number_input("Short MA Period", min_value=1, value=MA_SHORT_PERIOD)
     ma_long_period_input = st.sidebar.number_input("Long MA Period", min_value=1, value=MA_LONG_PERIOD)
     vix_high_threshold_input = st.sidebar.number_input("VIX High Threshold", value=VIX_THRESHOLD_HIGH)
     vix_low_threshold_input = st.sidebar.number_input("VIX Low Threshold", value=VIX_THRESHOLD_LOW)
 
     if st.sidebar.button("Analyze"):
-        with st.spinner("Fetching and analyzing data..."):
+        if not alpha_vantage_api_key:
+            st.sidebar.error("Please enter your Alpha Vantage API Key.")
+            st.stop() # Stop execution if API key is missing
+
+        with st.spinner("Fetching and analyzing data from Alpha Vantage..."):
             end_date = datetime.today()
             start_date = end_date - timedelta(days=LOOKBACK_DAYS)
             period_str = f"{start_date.strftime('%Y-%m-%d')}:{end_date.strftime('%Y-%m-%d')}"
 
-            stock_data = fetch_stock_data(symbol, period=period_str)
-            vix_data = fetch_vix_data(vix_symbol, period=period_str)
+            stock_data = fetch_stock_data_alphavantage(symbol, alpha_vantage_api_key, period=period_str)
+            vix_data = fetch_vix_data_alphavantage(vix_symbol, alpha_vantage_api_key, period=period_str)
 
             if stock_data is not None:
                 ma_short, ma_long = calculate_moving_averages(stock_data, ma_short_period_input, ma_long_period_input)
@@ -153,7 +194,7 @@ def main():
             st.subheader("Interpretation & Disclaimer")
             st.write("* This is a simplified market regime indicator for educational purposes only and not financial advice.")
             st.write("* It uses Moving Averages and VIX as indicators. Real market analysis requires more comprehensive data and tools.")
-            st.write("* Data is from Yahoo Finance API, which has limitations and data quality considerations.")
+            st.write("* Data is from Alpha Vantage API. Be mindful of their API usage limits (free tier).")
             st.write("* Regime classifications are based on predefined thresholds and rules, which are examples and can be adjusted and optimized through backtesting.")
             st.write("* **Do not make investment decisions based solely on this indicator.** Consult with a qualified financial advisor before making any investment decisions.")
 
