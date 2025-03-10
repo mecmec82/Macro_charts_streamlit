@@ -135,7 +135,7 @@ def main():
 
     st.sidebar.header("Settings")
     #alpha_vantage_api_key = st.sidebar.text_input("Alpha Vantage API Key", type="password") # Password type for security
-    alpha_vantage_api_key = E3AHZ2K13ICQR8FC
+    alpha_vantage_api_key = "E3AHZ2K13ICQR8FC"
     symbol = st.sidebar.text_input("Stock Index Symbol (e.g., ^GSPC or SPY)", DEFAULT_SYMBOL)
     vix_symbol = st.sidebar.text_input("VIX Symbol (e.g., ^VIX or VXX)", DEFAULT_VIX_SYMBOL) #VIX symbol might need to be adjusted for AV
     ma_short_period_input = st.sidebar.number_input("Short MA Period", min_value=1, value=MA_SHORT_PERIOD)
