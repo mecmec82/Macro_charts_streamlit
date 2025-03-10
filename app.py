@@ -16,6 +16,11 @@ def get_daily_data(symbol, api_key):
         response = requests.get(url)
         response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
         data = response.json()
+
+        print("--- Raw API Response (JSON) ---")  # ADD THIS LINE
+        print(json.dumps(data, indent=4))         # ADD THIS LINE
+        print("--- End Raw Response ---")         # ADD THIS LINE
+
         if 'Time Series (Daily)' in data:
             df = pd.DataFrame.from_dict(data['Time Series (Daily)'], orient='index')
             df.index = pd.to_datetime(df.index)
