@@ -5,7 +5,7 @@ import json
 from datetime import datetime, timedelta
 
 # --- Configuration ---
-DEFAULT_SYMBOL = "^GSPC"  # Default S&P 500 Index symbol
+DEFAULT_SYMBOL = "GSPC"  # Default S&P 500 Index symbol
 DEFAULT_VIX_SYMBOL = "^VIX"  # Default VIX symbol (Note: VIX data might be harder to get for free from Alpha Vantage. May need proxy or alternative source)
 MA_SHORT_PERIOD = 50
 MA_LONG_PERIOD = 200
