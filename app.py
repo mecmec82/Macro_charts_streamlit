@@ -6,7 +6,7 @@ import numpy as np
 import datetime
 
 # --- CONFIGURATION ---
-ALPHA_VANTAGE_API_KEY = st.secrets["alpha_vantage_api"]  # Store API key in Streamlit secrets
+# ALPHA_VANTAGE_API_KEY = st.secrets["alpha_vantage_api"]  # Removed secrets, now using text input
 
 # --- FUNCTIONS ---
 def get_daily_data(symbol, api_key):
@@ -94,13 +94,15 @@ This dashboard provides an *indication* of the current stock market regime based
 * **Sideways/Neutral Market:**  Lack of a clear trend, price consolidation, and moderate volatility.
 """)
 
-stock_symbol = st.sidebar.selectbox("Select Stock Ticker (Broad Market ETF recommended):", ['SPY', 'QQQ', 'DIA', 'IWM'])  # Add more if needed
-if not ALPHA_VANTAGE_API_KEY:
-    st.sidebar.warning("Please enter your Alpha Vantage API key in Streamlit secrets.")
+stock_symbol = st.sidebar.selectbox("Select Stock Ticker (Broad Market ETF recommended):", ['SPY', 'QQQ', 'DIA', 'IWM'])
+api_key = st.sidebar.text_input("Enter Alpha Vantage API Key:", type="password") # Text input for API key
+
+if not api_key:
+    st.sidebar.warning("Please enter your Alpha Vantage API key in the sidebar.")
 else:
     if stock_symbol:
         st.header(f"Regime Analysis for: {stock_symbol}")
-        data_df = get_daily_data(stock_symbol, ALPHA_VANTAGE_API_KEY)
+        data_df = get_daily_data(stock_symbol, api_key) # Use api_key from text input
 
         if data_df is not None:
             # Rename columns for easier access
