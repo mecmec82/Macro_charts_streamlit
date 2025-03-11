@@ -27,17 +27,20 @@ if api_token:
             if st.checkbox("Show Raw Data"):
                 st.write(data)
 
-            # Plotting the closing price
-            st.subheader("SPY Closing Price Over Time")
-            fig_close = px.line(data, y='Close', title="SPY Closing Price")
+            # Calculate Moving Averages
+            data['MA10'] = data['Close'].rolling(window=10).mean()
+            data['MA20'] = data['Close'].rolling(window=20).mean()
+            data['MA50'] = data['Close'].rolling(window=50).mean()
+
+            # Plotting the closing price with Moving Averages
+            st.subheader("SPY Closing Price with Moving Averages")
+            fig_close = px.line(data, y=['Close', 'MA10', 'MA20', 'MA50'],
+                                labels={'value': 'Price', 'Date': 'Date', 'variable': 'Legend'},
+                                title="SPY Closing Price with 10, 20, and 50-Day Moving Averages")
             st.plotly_chart(fig_close, use_container_width=True)
 
-            # Plotting volume
-            st.subheader("SPY Volume Over Time")
-            fig_volume = px.bar(data, y='Volume', title="SPY Volume")
-            st.plotly_chart(fig_volume, use_container_width=True)
 
-            # Optional: Add more plots or analysis here (e.g., moving averages, OHLC chart)
+            # Optional: Add more plots or analysis here (e.g., OHLC chart)
 
         else:
             st.error("Could not retrieve data for SPY. Please check your API token and ticker symbol.")
