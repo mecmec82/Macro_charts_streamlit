@@ -1,149 +1,60 @@
 import streamlit as st
+from alpha_vantage.timeseries import TimeSeries
 import pandas as pd
-import requests
-import json
-import numpy as np
-import datetime
+import plotly.express as px
 
-# --- CONFIGURATION ---
-# ALPHA_VANTAGE_API_KEY = st.secrets["alpha_vantage_api"]  # Removed secrets, now using text input
+st.title("SPY Historical Data Dashboard")
 
-# --- FUNCTIONS ---
-def get_daily_data(symbol, api_key):
-    """Fetches daily adjusted data from Alpha Vantage."""
-    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={symbol}&outputsize=full&apikey={api_key}"
+# Input box for Alpha Vantage API token
+api_token = st.text_input("Enter your Alpha Vantage API Token:", type="password")
+
+if api_token:
     try:
-        response = requests.get(url)
-        response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
-        data = response.json()
+        # Initialize Alpha Vantage Time Series API
+        ts = TimeSeries(key=api_token, output_format='pandas')
 
-        print("--- Raw API Response (JSON) ---")  # ADD THIS LINE
-        print(json.dumps(data, indent=4))         # ADD THIS LINE
-        print("--- End Raw Response ---")         # ADD THIS LINE
+        # Fetch daily historical data for SPY
+        data, meta_data = ts.get_daily(symbol='SPY', outputsize='full') # outputsize='full' for max historical data
 
-        if 'Time Series (Daily)' in data:
-            df = pd.DataFrame.from_dict(data['Time Series (Daily)'], orient='index')
-            df.index = pd.to_datetime(df.index)
-            df = df.sort_index()
-            for col in df.columns:
-                df[col] = pd.to_numeric(df[col])
-            return df
-        elif 'Error Message' in data:
-            st.error(f"Alpha Vantage API Error: {data['Error Message']}")
-            return None
+        if data is not None and not data.empty:
+            st.success("Data fetched successfully!")
+
+            # Rename columns for better readability
+            data.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+            data.index.name = 'Date'
+
+            # Display raw data (optional)
+            if st.checkbox("Show Raw Data"):
+                st.write(data)
+
+            # Plotting the closing price
+            st.subheader("SPY Closing Price Over Time")
+            fig_close = px.line(data, y='Close', title="SPY Closing Price")
+            st.plotly_chart(fig_close, use_container_width=True)
+
+            # Plotting volume
+            st.subheader("SPY Volume Over Time")
+            fig_volume = px.bar(data, y='Volume', title="SPY Volume")
+            st.plotly_chart(fig_volume, use_container_width=True)
+
+            # Optional: Add more plots or analysis here (e.g., moving averages, OHLC chart)
+
         else:
-            st.error("Unexpected data format from Alpha Vantage API.")
-            return None
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error connecting to Alpha Vantage API: {e}")
-        return None
+            st.error("Could not retrieve data for SPY. Please check your API token and ticker symbol.")
 
-def calculate_sma(df, window):
-    """Calculates Simple Moving Average."""
-    return df['close'].rolling(window=window).mean()
+    except ValueError as e:
+        st.error(f"Error fetching data: {e}. Please check your API token.")
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {e}")
 
-def calculate_rsi(df, window):
-    """Calculates Relative Strength Index."""
-    delta = df['close'].diff(1)
-    gain = (delta.where(delta > 0, 0)).fillna(0)
-    loss = (-delta.where(delta < 0, 0)).fillna(0)
-    avg_gain = gain.rolling(window=window).mean()
-    avg_loss = loss.rolling(window=window).mean()
-    rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi
-
-def calculate_volatility(df, window):
-    """Calculates simple historical volatility (standard deviation of daily returns)."""
-    daily_returns = df['close'].pct_change().dropna()
-    volatility = daily_returns.rolling(window=window).std() * np.sqrt(252) # Annualize volatility
-    return volatility * 100 # Return in percentage
-
-def classify_regime(df, short_sma_window=20, long_sma_window=200, rsi_window=14, vol_window=20):
-    """Classifies market regime based on indicators."""
-    short_sma = calculate_sma(df, short_sma_window)
-    long_sma = calculate_sma(df, long_sma_window)
-    rsi = calculate_rsi(df, rsi_window)
-    volatility = calculate_volatility(df, vol_window)
-
-    current_price = df['close'].iloc[-1]
-    current_short_sma = short_sma.iloc[-1]
-    current_long_sma = long_sma.iloc[-1]
-    current_rsi = rsi.iloc[-1]
-    current_volatility = volatility.iloc[-1]
-
-    if current_price > current_long_sma and current_short_sma > current_long_sma and current_rsi < 70 and current_volatility < 25: # Example thresholds, adjust as needed
-        regime = "Bull Market"
-    elif current_price < current_long_sma and current_short_sma < current_long_sma and current_rsi > 30 and current_volatility > 20: # Example thresholds, adjust as needed
-        regime = "Bear Market"
-    else:
-        regime = "Sideways/Neutral Market" # Or "Uncertain", etc.
-
-    return regime, current_price, current_short_sma, current_long_sma, current_rsi, current_volatility, short_sma, long_sma, rsi, volatility
-
-# --- STREAMLIT APP ---
-st.title("Stock Market Regime Dashboard")
+else:
+    st.warning("Please enter your Alpha Vantage API Token to fetch data.")
 
 st.markdown("""
-This dashboard provides an *indication* of the current stock market regime based on simple technical indicators using non-premium Alpha Vantage API data.
-**It's for informational purposes only and not financial advice.**  Market regimes are complex and this is a simplified model.
+**Note:**
 
-**Indicators Used:**
-* **20-day and 200-day Simple Moving Averages (SMA):** To identify trend direction.
-* **14-day Relative Strength Index (RSI):** To gauge momentum and overbought/oversold conditions.
-* **20-day Historical Volatility:**  Estimated from daily price changes to assess market volatility.
-
-**Regime Definitions (Simplified):**
-* **Bull Market:** Generally characterized by rising prices, positive sentiment, and often lower volatility.
-* **Bear Market:** Generally characterized by falling prices, negative sentiment, and often higher volatility.
-* **Sideways/Neutral Market:**  Lack of a clear trend, price consolidation, and moderate volatility.
+*   This dashboard uses the **non-premium** Alpha Vantage API. Be mindful of API request limits.
+*   Get your free API token from [https://www.alphavantage.co/support/#api-key](https://www.alphavantage.co/support/#api-key).
+*   For extensive historical data, `outputsize='full'` is used, which might take longer for the initial fetch.
+*   Consider caching the data for better performance if you plan to use this frequently.
 """)
-
-stock_symbol = st.sidebar.selectbox("Select Stock Ticker (Broad Market ETF recommended):", ['SPY', 'QQQ', 'DIA', 'IWM'])
-api_key = st.sidebar.text_input("Enter Alpha Vantage API Key:", type="password") # Text input for API key
-
-if not api_key:
-    st.sidebar.warning("Please enter your Alpha Vantage API key in the sidebar.")
-else:
-    if stock_symbol:
-        st.header(f"Regime Analysis for: {stock_symbol}")
-        data_df = get_daily_data(stock_symbol, api_key) # Use api_key from text input
-
-        if data_df is not None:
-            # Rename columns for easier access
-            data_df.rename(columns={'4. close': 'close'}, inplace=True)
-
-            regime, current_price, current_short_sma, current_long_sma, current_rsi, current_volatility, short_sma, long_sma, rsi, volatility = classify_regime(data_df)
-
-            st.subheader("Current Market Regime Indication:")
-            st.markdown(f"<h2 style='text-align: center; color: {'green' if regime == 'Bull Market' else ('red' if regime == 'Bear Market' else 'orange')};'>{regime}</h2>", unsafe_allow_html=True)
-
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Current Price", f"${current_price:.2f}")
-            col2.metric("20-day SMA", f"${current_short_sma:.2f}")
-            col3.metric("200-day SMA", f"${current_long_sma:.2f}")
-
-            col4, col5 = st.columns(2)
-            col4.metric("14-day RSI", f"{current_rsi:.2f}")
-            col5.metric("20-day Volatility (Annualized)", f"{current_volatility:.2f}%")
-
-            st.subheader("Price Chart with Moving Averages")
-            chart_data = pd.DataFrame({
-                'Price': data_df['close'],
-                '20-day SMA': short_sma,
-                '200-day SMA': long_sma
-            }).dropna()
-            st.line_chart(chart_data)
-
-            st.subheader("RSI")
-            rsi_data = pd.DataFrame({'RSI': rsi}).dropna()
-            st.line_chart(rsi_data)
-
-            st.subheader("Volatility (Annualized)")
-            volatility_data = pd.DataFrame({'Volatility': volatility}).dropna()
-            st.line_chart(volatility_data)
-
-            st.info("**Disclaimer:** This dashboard provides a simplified indication of market regimes based on common technical indicators.  Market conditions are constantly evolving, and this analysis should not be considered definitive financial advice. Always conduct your own thorough research and consult with a financial professional before making investment decisions.")
-
-    else:
-        st.info("Select a stock ticker symbol from the sidebar to begin analysis.")
