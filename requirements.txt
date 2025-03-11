@@ -1,5 +1,4 @@
 streamlit
-yfinance
+plotly
 pandas
-numpy
-matplotlib
+alpha_vantage
