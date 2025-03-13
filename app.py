@@ -37,13 +37,18 @@ if api_token:
             # Date Range Slider
             min_date = data.index.min()
             max_date = data.index.max()
-            start_date, end_date = st.sidebar.slider(
+            start_date_date, end_date_date = st.sidebar.slider( # Renamed variables to avoid confusion
                 "Select Date Range:",
                 min_value=min_date,
                 max_value=max_date,
                 value=(min_date, max_date),  # Default to full range
                 format="YYYY-MM-DD"
             )
+
+            # Convert datetime.date to pandas.Timestamp for filtering
+            start_date = pd.Timestamp(start_date_date)
+            end_date = pd.Timestamp(end_date_date)
+
 
             # Filter data by date range
             filtered_data = data.loc[start_date:end_date]
