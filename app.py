@@ -18,6 +18,9 @@ with st.sidebar:
         default=[10, 20, 50],
     )
 
+    # Input for Last N Days
+    n_days = st.number_input("Show Last N Days:", min_value=1, max_value=3650, value=365) # Max 10 years as a reasonable limit
+
 
 if api_token:
     try:
@@ -34,29 +37,15 @@ if api_token:
             data.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
             data.index.name = 'Date'
 
-            # Ensure index is DatetimeIndex (convert if needed)
+            # Ensure index is DatetimeIndex (just in case)
             if not isinstance(data.index, pd.DatetimeIndex):
                 data.index = pd.to_datetime(data.index)
 
-            # --- DATE RANGE SLIDER - DIFFERENT APPROACH ---
-            min_date = data.index.min()
-            max_date = data.index.max()
-            start_date_date, end_date_date = st.sidebar.slider(
-                "Select Date Range:",
-                min_value=min_date,
-                max_value=max_date,
-                value=(min_date, max_date),  # Default to full range
-                format="YYYY-MM-DD"
-            )
-
-            # Convert slider dates to pandas.Timestamp (and then to datetime64[ns] which is what DatetimeIndex often uses internally)
-            start_date = pd.to_datetime(pd.Timestamp(start_date_date))
-            end_date = pd.to_datetime(pd.Timestamp(end_date_date))
-
-
-            # Filter data by date range using boolean indexing
-            filtered_data = data[(data.index >= start_date) & (data.index <= end_date)]
-            # --- END DATE RANGE SLIDER ---
+            # --- LAST N DAYS FILTERING ---
+            latest_date = data.index.max()
+            start_date = latest_date - pd.Timedelta(days=n_days)
+            filtered_data = data[data.index >= start_date] # Boolean indexing
+            # --- END LAST N DAYS FILTERING ---
 
 
             # Display raw data (optional)
