@@ -34,7 +34,11 @@ if api_token:
             data.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
             data.index.name = 'Date'
 
-            # --- DATE RANGE SLIDER ---
+            # Ensure index is DatetimeIndex (convert if needed)
+            if not isinstance(data.index, pd.DatetimeIndex):
+                data.index = pd.to_datetime(data.index)
+
+            # --- DATE RANGE SLIDER - DIFFERENT APPROACH ---
             min_date = data.index.min()
             max_date = data.index.max()
             start_date_date, end_date_date = st.sidebar.slider(
@@ -44,9 +48,14 @@ if api_token:
                 value=(min_date, max_date),  # Default to full range
                 format="YYYY-MM-DD"
             )
-            start_date = pd.Timestamp(start_date_date) # Conversion to Timestamp
-            end_date = pd.Timestamp(end_date_date)     # Conversion to Timestamp
-            filtered_data = data.loc[start_date:end_date] # Data filtering
+
+            # Convert slider dates to pandas.Timestamp (and then to datetime64[ns] which is what DatetimeIndex often uses internally)
+            start_date = pd.to_datetime(pd.Timestamp(start_date_date))
+            end_date = pd.to_datetime(pd.Timestamp(end_date_date))
+
+
+            # Filter data by date range using boolean indexing
+            filtered_data = data[(data.index >= start_date) & (data.index <= end_date)]
             # --- END DATE RANGE SLIDER ---
 
 
