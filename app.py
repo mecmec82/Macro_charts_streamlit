@@ -8,13 +8,20 @@ st.title("SPY Historical Data Dashboard")
 # Input box for Alpha Vantage API token
 api_token = st.text_input("Enter your Alpha Vantage API Token:", type="password")
 
+# Input for Moving Average periods
+ma_periods = st.multiselect(
+    "Select Moving Average Periods (days):",
+    options=[10, 20, 50, 100, 200],
+    default=[10, 20, 50],
+)
+
 if api_token:
     try:
         # Initialize Alpha Vantage Time Series API
         ts = TimeSeries(key=api_token, output_format='pandas')
 
         # Fetch daily historical data for SPY
-        data, meta_data = ts.get_daily(symbol='SPY', outputsize='full') # outputsize='full' for max historical data
+        data, meta_data = ts.get_daily(symbol='SPY', outputsize='full')  # outputsize='full' for max historical data
 
         if data is not None and not data.empty:
             st.success("Data fetched successfully!")
@@ -27,20 +34,20 @@ if api_token:
             if st.checkbox("Show Raw Data"):
                 st.write(data)
 
-            # Calculate Moving Averages
-            data['MA10'] = data['Close'].rolling(window=10).mean()
-            data['MA20'] = data['Close'].rolling(window=20).mean()
-            data['MA50'] = data['Close'].rolling(window=50).mean()
+            # Calculate Moving Averages based on user input
+            ma_columns_to_plot = ['Close']
+            for period in ma_periods:
+                ma_column_name = f'MA{period}'
+                data[ma_column_name] = data['Close'].rolling(window=period).mean()
+                ma_columns_to_plot.append(ma_column_name)
 
             # Plotting the closing price with Moving Averages
             st.subheader("SPY Closing Price with Moving Averages")
-            fig_close = px.line(data, y=['Close', 'MA10', 'MA20', 'MA50'],
+            fig_close = px.line(data, y=ma_columns_to_plot,
                                 labels={'value': 'Price', 'Date': 'Date', 'variable': 'Legend'},
-                                title="SPY Closing Price with 10, 20, and 50-Day Moving Averages")
+                                title="SPY Closing Price with Moving Averages")
             st.plotly_chart(fig_close, use_container_width=True)
 
-
-            # Optional: Add more plots or analysis here (e.g., OHLC chart)
 
         else:
             st.error("Could not retrieve data for SPY. Please check your API token and ticker symbol.")
