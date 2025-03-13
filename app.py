@@ -34,20 +34,36 @@ if api_token:
             data.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
             data.index.name = 'Date'
 
+            # --- DATE RANGE SLIDER ---
+            min_date = data.index.min()
+            max_date = data.index.max()
+            start_date_date, end_date_date = st.sidebar.slider(
+                "Select Date Range:",
+                min_value=min_date,
+                max_value=max_date,
+                value=(min_date, max_date),  # Default to full range
+                format="YYYY-MM-DD"
+            )
+            start_date = pd.Timestamp(start_date_date) # Conversion to Timestamp
+            end_date = pd.Timestamp(end_date_date)     # Conversion to Timestamp
+            filtered_data = data.loc[start_date:end_date] # Data filtering
+            # --- END DATE RANGE SLIDER ---
+
+
             # Display raw data (optional)
             if st.sidebar.checkbox("Show Raw Data", value=False): # Moved checkbox to sidebar
-                st.write(data)
+                st.write(filtered_data)
 
             # Calculate Moving Averages based on user input
             ma_columns_to_plot = ['Close']
             for period in ma_periods:
                 ma_column_name = f'MA{period}'
-                data[ma_column_name] = data['Close'].rolling(window=period).mean()
+                filtered_data[ma_column_name] = filtered_data['Close'].rolling(window=period).mean()
                 ma_columns_to_plot.append(ma_column_name)
 
             # Plotting the closing price with Moving Averages
             st.subheader("SPY Closing Price with Moving Averages")
-            fig_close = px.line(data, y=ma_columns_to_plot,
+            fig_close = px.line(filtered_data, y=ma_columns_to_plot,
                                 labels={'value': 'Price', 'Date': 'Date', 'variable': 'Legend'},
                                 title="SPY Closing Price with Moving Averages")
             st.plotly_chart(fig_close, use_container_width=True)
