@@ -41,26 +41,27 @@ if api_token:
             if not isinstance(data.index, pd.DatetimeIndex):
                 data.index = pd.to_datetime(data.index)
 
-            # --- LAST N DAYS FILTERING ---
-            latest_date = data.index.max()
-            start_date = latest_date - pd.Timedelta(days=n_days)
-            filtered_data = data[data.index >= start_date] # Boolean indexing
-            # --- END LAST N DAYS FILTERING ---
-
-
-            # Display raw data (optional)
-            if st.sidebar.checkbox("Show Raw Data", value=False): # Moved checkbox to sidebar
-                st.write(filtered_data)
-
-            # Calculate Moving Averages based on user input
+            # Calculate Moving Averages on the *full* dataset
             ma_columns_to_plot = ['Close']
             for period in ma_periods:
                 ma_column_name = f'MA{period}'
-                # Calculate MA and shift to align to the end of the period
-                filtered_data[ma_column_name] = filtered_data['Close'].rolling(window=period).mean().shift(-period + 1)
+                # Calculate MA and shift to align to the end of the period on the *full data*
+                data[ma_column_name] = data['Close'].rolling(window=period).mean().shift(-period + 1)
                 ma_columns_to_plot.append(ma_column_name)
 
-            # Plotting the closing price with Moving Averages
+
+            # --- LAST N DAYS FILTERING ---
+            latest_date = data.index.max()
+            start_date = latest_date - pd.Timedelta(days=n_days)
+            filtered_data = data[data.index >= start_date].copy() # Boolean indexing and create a copy
+            # --- END LAST N DAYS FILTERING ---
+
+
+            # Display raw data (optional) - display filtered data
+            if st.sidebar.checkbox("Show Raw Data", value=False): # Moved checkbox to sidebar
+                st.write(filtered_data)
+
+            # Plotting the closing price with Moving Averages - plot filtered data
             st.subheader("SPY Closing Price with Moving Averages")
             fig_close = px.line(filtered_data, y=ma_columns_to_plot,
                                 labels={'value': 'Price', 'Date': 'Date', 'variable': 'Legend'},
