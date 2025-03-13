@@ -56,7 +56,8 @@ if api_token:
             ma_columns_to_plot = ['Close']
             for period in ma_periods:
                 ma_column_name = f'MA{period}'
-                filtered_data[ma_column_name] = filtered_data['Close'].rolling(window=period).mean()
+                # Calculate MA and shift to align to the end of the period
+                filtered_data[ma_column_name] = filtered_data['Close'].rolling(window=period).mean().shift(-period + 1)
                 ma_columns_to_plot.append(ma_column_name)
 
             # Plotting the closing price with Moving Averages
