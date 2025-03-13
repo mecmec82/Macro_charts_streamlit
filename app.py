@@ -5,15 +5,19 @@ import plotly.express as px
 
 st.title("SPY Historical Data Dashboard")
 
-# Input box for Alpha Vantage API token
-api_token = st.text_input("Enter your Alpha Vantage API Token:", type="password")
+# Sidebar for inputs
+with st.sidebar:
+    st.header("Input Parameters")
+    # API Token Input
+    api_token = st.text_input("Alpha Vantage API Token:", type="password")
 
-# Input for Moving Average periods
-ma_periods = st.multiselect(
-    "Select Moving Average Periods (days):",
-    options=[10, 20, 50, 100, 200],
-    default=[10, 20, 50],
-)
+    # Moving Average Periods Input
+    ma_periods = st.multiselect(
+        "Moving Average Periods (days):",
+        options=[10, 20, 50, 100, 200],
+        default=[10, 20, 50],
+    )
+
 
 if api_token:
     try:
@@ -30,20 +34,34 @@ if api_token:
             data.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
             data.index.name = 'Date'
 
+            # Date Range Slider
+            min_date = data.index.min()
+            max_date = data.index.max()
+            start_date, end_date = st.sidebar.slider(
+                "Select Date Range:",
+                min_value=min_date,
+                max_value=max_date,
+                value=(min_date, max_date),  # Default to full range
+                format="YYYY-MM-DD"
+            )
+
+            # Filter data by date range
+            filtered_data = data.loc[start_date:end_date]
+
             # Display raw data (optional)
-            if st.checkbox("Show Raw Data"):
-                st.write(data)
+            if st.sidebar.checkbox("Show Raw Data", value=False): # Moved checkbox to sidebar
+                st.write(filtered_data)
 
             # Calculate Moving Averages based on user input
             ma_columns_to_plot = ['Close']
             for period in ma_periods:
                 ma_column_name = f'MA{period}'
-                data[ma_column_name] = data['Close'].rolling(window=period).mean()
+                filtered_data[ma_column_name] = filtered_data['Close'].rolling(window=period).mean()
                 ma_columns_to_plot.append(ma_column_name)
 
             # Plotting the closing price with Moving Averages
             st.subheader("SPY Closing Price with Moving Averages")
-            fig_close = px.line(data, y=ma_columns_to_plot,
+            fig_close = px.line(filtered_data, y=ma_columns_to_plot,
                                 labels={'value': 'Price', 'Date': 'Date', 'variable': 'Legend'},
                                 title="SPY Closing Price with Moving Averages")
             st.plotly_chart(fig_close, use_container_width=True)
@@ -58,7 +76,7 @@ if api_token:
         st.error(f"An unexpected error occurred: {e}")
 
 else:
-    st.warning("Please enter your Alpha Vantage API Token to fetch data.")
+    st.warning("Please enter your Alpha Vantage API Token to fetch data in the sidebar.")
 
 st.markdown("""
 **Note:**
