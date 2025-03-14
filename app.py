@@ -76,14 +76,37 @@ if api_token:
             st.subheader("SPY Closing Price with Moving Averages (Color based on MA)")
             fig_close = go.Figure() # Use go.Figure for more control
 
-            # Add colored Close price line
+            # --- Plotting Colored Price Line in Segments ---
+            price_color_series = filtered_data['Price_Color']
+            close_price_series = filtered_data['Close']
+
+            last_color = price_color_series.iloc[0] # Initialize with first color
+            start_index = 0
+
+            for i in range(1, len(price_color_series)):
+                current_color = price_color_series.iloc[i]
+                if current_color != last_color:
+                    # Add a trace for the segment with the last color
+                    fig_close.add_trace(go.Scatter(
+                        x=filtered_data.index[start_index:i],
+                        y=close_price_series.iloc[start_index:i],
+                        mode='lines',
+                        line=dict(color=last_color, width=1.5),
+                        showlegend=False # Only show legend for the first segment
+                    ))
+                    start_index = i # Start new segment from current index
+                    last_color = current_color # Update last color
+
+            # Add the last segment
             fig_close.add_trace(go.Scatter(
-                x=filtered_data.index,
-                y=filtered_data['Close'],
+                x=filtered_data.index[start_index:],
+                y=close_price_series.iloc[start_index:],
                 mode='lines',
-                name='Close Price',
-                line=dict(color=filtered_data['Price_Color'], width=1.5) # Color by Price_Color column
+                line=dict(color=last_color, width=1.5),
+                name='Close Price' # Show legend for the last segment (which is effectively the entire price line's legend)
             ))
+            # --- End Plotting Colored Price Line in Segments ---
+
 
             # Add Moving Averages as separate traces
             for ma_col in [col for col in ma_columns_to_plot if col != 'Close']: # Plot MAs, excluding 'Close' from ma_columns_to_plot
