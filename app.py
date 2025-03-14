@@ -12,19 +12,11 @@ with st.sidebar:
     # API Token Input
     api_token = st.text_input("Alpha Vantage API Token:", type="password")
 
-    # Moving Average Periods Input
-    ma_periods_options = [10, 20, 50, 100, 200] # Define options list
-    ma_periods = st.multiselect(
-        "Moving Average Periods (days):",
-        options=ma_periods_options,
-        default=[10, 20, 50],
-    )
+    # Moving Average Period Input (Single Input Now)
+    ma_period = st.number_input("Moving Average Period (days):", min_value=2, max_value=200, value=20) # Default to 20-day MA
 
     # Input for Last N Days
     n_days = st.number_input("Show Last N Days:", min_value=1, max_value=3650, value=365) # Max 10 years as a reasonable limit
-
-    # Select MA for Price Color
-    ma_period_color = st.selectbox("MA for Price Color:", options=ma_periods, index=1 if len(ma_periods) > 1 else 0) # Default to 20-day MA, or first if less than 2
 
 
 if api_token:
@@ -46,13 +38,9 @@ if api_token:
             if not isinstance(data.index, pd.DatetimeIndex):
                 data.index = pd.to_datetime(data.index)
 
-            # Calculate Moving Averages on the *full* dataset
-            ma_columns_to_plot = ['Close'] # Still want to plot Close, but as separate traces now
-            for period in ma_periods:
-                ma_column_name = f'MA{period}'
-                # Calculate MA and shift to align to the end of the period on the *full data*
-                data[ma_column_name] = data['Close'].rolling(window=period).mean().shift(-period + 1)
-                ma_columns_to_plot.append(ma_column_name)
+            # Calculate Moving Average on the *full* dataset (only one MA now)
+            ma_column_name = f'MA{ma_period}'
+            data[ma_column_name] = data['Close'].rolling(window=ma_period).mean().shift(-ma_period + 1)
 
 
             # --- LAST N DAYS FILTERING ---
@@ -62,8 +50,8 @@ if api_token:
             # --- END LAST N DAYS FILTERING ---
 
 
-            # Determine Price Color based on selected MA
-            ma_color_column = f'MA{ma_period_color}'
+            # Determine Price Color based on the single MA
+            ma_color_column = f'MA{ma_period}'
             filtered_data['Price_Color'] = filtered_data.apply(
                 lambda row: 'green' if row['Close'] > row[ma_color_column] else 'red', axis=1
             )
@@ -72,8 +60,8 @@ if api_token:
             if st.sidebar.checkbox("Show Raw Data", value=False): # Moved checkbox to sidebar
                 st.write(filtered_data)
 
-            # Plotting the closing price with Moving Averages - plot filtered data
-            st.subheader("SPY Closing Price with Moving Averages (Color based on MA)")
+            # Plotting the closing price with Moving Average - plot filtered data
+            st.subheader(f"SPY Closing Price with {ma_period}-Day Moving Average (Color based on MA)")
             fig_close = go.Figure() # Use go.Figure for more control
 
             # --- Plotting Colored Price Line in Segments ---
@@ -108,19 +96,18 @@ if api_token:
             # --- End Plotting Colored Price Line in Segments ---
 
 
-            # Add Moving Averages as separate traces
-            for ma_col in [col for col in ma_columns_to_plot if col != 'Close']: # Plot MAs, excluding 'Close' from ma_columns_to_plot
-                fig_close.add_trace(go.Scatter(
-                    x=filtered_data.index,
-                    y=filtered_data[ma_col],
-                    mode='lines',
-                    name=ma_col,
-                    line=dict(color='blue', dash='dash', width=1) # Example style for MAs
-                ))
+            # Add the Single Moving Average
+            fig_close.add_trace(go.Scatter(
+                x=filtered_data.index,
+                y=filtered_data[ma_column_name],
+                mode='lines',
+                name=ma_column_name,
+                line=dict(color='blue', dash='dash', width=1) # Example style for MA
+            ))
 
 
             fig_close.update_layout(
-                title="SPY Closing Price with Moving Averages (Color based on MA)",
+                title=f"SPY Closing Price with {ma_period}-Day Moving Average (Color based on MA)",
                 xaxis_title="Date",
                 yaxis_title="Price"
             )
