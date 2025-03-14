@@ -2,6 +2,7 @@ import streamlit as st
 from alpha_vantage.timeseries import TimeSeries
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go # Import graph_objects for more control
 
 st.title("SPY Historical Data Dashboard")
 
@@ -20,6 +21,9 @@ with st.sidebar:
 
     # Input for Last N Days
     n_days = st.number_input("Show Last N Days:", min_value=1, max_value=3650, value=365) # Max 10 years as a reasonable limit
+
+    # Select MA for Price Color
+    ma_period_color = st.selectbox("MA for Price Color:", options=ma_periods, index=1) # Default to 20-day MA
 
 
 if api_token:
@@ -42,7 +46,7 @@ if api_token:
                 data.index = pd.to_datetime(data.index)
 
             # Calculate Moving Averages on the *full* dataset
-            ma_columns_to_plot = ['Close']
+            ma_columns_to_plot = ['Close'] # Still want to plot Close, but as separate traces now
             for period in ma_periods:
                 ma_column_name = f'MA{period}'
                 # Calculate MA and shift to align to the end of the period on the *full data*
@@ -57,15 +61,45 @@ if api_token:
             # --- END LAST N DAYS FILTERING ---
 
 
+            # Determine Price Color based on selected MA
+            ma_color_column = f'MA{ma_period_color}'
+            filtered_data['Price_Color'] = filtered_data.apply(
+                lambda row: 'green' if row['Close'] > row[ma_color_column] else 'red', axis=1
+            )
+
             # Display raw data (optional) - display filtered data
             if st.sidebar.checkbox("Show Raw Data", value=False): # Moved checkbox to sidebar
                 st.write(filtered_data)
 
             # Plotting the closing price with Moving Averages - plot filtered data
-            st.subheader("SPY Closing Price with Moving Averages")
-            fig_close = px.line(filtered_data, y=ma_columns_to_plot,
-                                labels={'value': 'Price', 'Date': 'Date', 'variable': 'Legend'},
-                                title="SPY Closing Price with Moving Averages")
+            st.subheader("SPY Closing Price with Moving Averages (Color based on MA)")
+            fig_close = go.Figure() # Use go.Figure for more control
+
+            # Add colored Close price line
+            fig_close.add_trace(go.Scatter(
+                x=filtered_data.index,
+                y=filtered_data['Close'],
+                mode='lines',
+                name='Close Price',
+                line=dict(color=filtered_data['Price_Color'], width=1.5) # Color by Price_Color column
+            ))
+
+            # Add Moving Averages as separate traces
+            for ma_col in [col for col in ma_columns_to_plot if col != 'Close']: # Plot MAs, excluding 'Close' from ma_columns_to_plot
+                fig_close.add_trace(go.Scatter(
+                    x=filtered_data.index,
+                    y=filtered_data[ma_col],
+                    mode='lines',
+                    name=ma_col,
+                    line=dict(color='blue', dash='dash', width=1) # Example style for MAs
+                ))
+
+
+            fig_close.update_layout(
+                title="SPY Closing Price with Moving Averages (Color based on MA)",
+                xaxis_title="Date",
+                yaxis_title="Price"
+            )
             st.plotly_chart(fig_close, use_container_width=True)
 
 
