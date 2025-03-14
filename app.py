@@ -112,7 +112,8 @@ if api_token:
             fig_close.update_layout(
                 title=f"SPY Closing Price with {ma_period}-Day Moving Average (Color based on MA)",
                 xaxis_title="Date",
-                yaxis_title="Price"
+                yaxis_title="Price",
+                height=900 # Set a fixed height in pixels - adjust as needed
             )
             st.plotly_chart(fig_close, use_container_width=True) # Keep use_container_width=True
 
