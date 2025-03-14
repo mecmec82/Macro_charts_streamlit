@@ -13,9 +13,10 @@ with st.sidebar:
     api_token = st.text_input("Alpha Vantage API Token:", type="password")
 
     # Moving Average Periods Input
+    ma_periods_options = [10, 20, 50, 100, 200] # Define options list
     ma_periods = st.multiselect(
         "Moving Average Periods (days):",
-        options=[10, 20, 50, 100, 200],
+        options=ma_periods_options,
         default=[10, 20, 50],
     )
 
@@ -23,7 +24,7 @@ with st.sidebar:
     n_days = st.number_input("Show Last N Days:", min_value=1, max_value=3650, value=365) # Max 10 years as a reasonable limit
 
     # Select MA for Price Color
-    ma_period_color = st.selectbox("MA for Price Color:", options=ma_periods, index=1) # Default to 20-day MA
+    ma_period_color = st.selectbox("MA for Price Color:", options=ma_periods, index=1 if len(ma_periods) > 1 else 0) # Default to 20-day MA, or first if less than 2
 
 
 if api_token:
