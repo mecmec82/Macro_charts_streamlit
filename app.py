@@ -67,7 +67,7 @@ if api_token:
             st.subheader(f"SPY Closing Price with {ma_period}-Day Moving Average (Color based on MA)")
             fig_close = go.Figure() # Use go.Figure for more control
 
-            # --- Plotting Colored Price Line in Segments ---
+            # --- Plotting Colored Price Line in Segments - CONNECTED LINES ---
             price_color_series = filtered_data['Price_Color']
             close_price_series = filtered_data['Close']
 
@@ -77,10 +77,10 @@ if api_token:
             for i in range(1, len(price_color_series)):
                 current_color = price_color_series.iloc[i]
                 if current_color != last_color:
-                    # Add a trace for the segment with the last color
+                    # Add a trace for the segment with the last color - EXTEND TO CURRENT INDEX
                     fig_close.add_trace(go.Scatter(
-                        x=filtered_data.index[start_index:i],
-                        y=close_price_series.iloc[start_index:i],
+                        x=filtered_data.index[start_index:i+1], # Extend to index i+1
+                        y=close_price_series.iloc[start_index:i+1], # Extend to index i+1
                         mode='lines',
                         line=dict(color=last_color, width=1.5),
                         showlegend=False # Only show legend for the first segment
@@ -88,15 +88,15 @@ if api_token:
                     start_index = i # Start new segment from current index
                     last_color = current_color # Update last color
 
-            # Add the last segment
+            # Add the last segment - EXTEND TO THE END
             fig_close.add_trace(go.Scatter(
-                x=filtered_data.index[start_index:],
-                y=close_price_series.iloc[start_index:],
+                x=filtered_data.index[start_index:], # Extend to the end
+                y=close_price_series.iloc[start_index:], # Extend to the end
                 mode='lines',
                 line=dict(color=last_color, width=1.5),
                 name='Close Price' # Show legend for the last segment (which is effectively the entire price line's legend)
             ))
-            # --- End Plotting Colored Price Line in Segments ---
+            # --- End Plotting Colored Price Line in Segments - CONNECTED LINES ---
 
 
             # Add the Single Moving Average
