@@ -4,6 +4,9 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go # Import graph_objects for more control
 
+# Set page layout to wide to make the chart larger
+st.set_page_config(layout="wide")
+
 st.title("SPY Historical Data Dashboard")
 
 # Sidebar for inputs
@@ -111,8 +114,7 @@ if api_token:
                 xaxis_title="Date",
                 yaxis_title="Price"
             )
-            st.plotly_chart(fig_close, use_container_width=True)
-
+            st.plotly_chart(fig_close, use_container_width=True) # Keep use_container_width=True
 
         else:
             st.error("Could not retrieve data for SPY. Please check your API token and ticker symbol.")
